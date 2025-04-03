@@ -17,7 +17,7 @@
         mcp.run(transport='stdio')
     
 ## Configure in cursor
-Example, update the command and args based on :
+Example, update the command and args based on actual dev env:
 ```
     {
     "version": 1,

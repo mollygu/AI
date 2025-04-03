@@ -17,14 +17,14 @@
         mcp.run(transport='stdio')
     
 ## Configure in cursor
-Example:
+Example, update the command and args based on :
 ```
     {
     "version": 1,
     "mcpServers": {
         "math-mcp": {
-            "command": "/Users/juagu/Library/Caches/pypoetry/virtualenvs/ngc-ui-test-LAXCvaQS-py3.11/bin/python",
-            "args": ["/Users/juagu/Documents/GitHub/AI/mcp_test/mcpmath.py"]
+            "command": "python",
+            "args": ["<path>/AI/mcp_test/mcpmath.py"]
         },
         "ui-operator": {
             "command": "/Users/juagu/Library/Caches/pypoetry/virtualenvs/ngc-ui-test-LAXCvaQS-py3.11/bin/python",

@@ -15,31 +15,30 @@ logging.basicConfig(
 mcp = FastMCP("LocalExecutor")
 
 @mcp.tool()
-def add(a, b):
+def add(a: int, b: int) -> int:
     """Add two numbers"""
-    logging.debug(f"Adding {a} + {b}")
     return a + b
 
 @mcp.tool()
-def subtract(a, b):
+def subtract(a: int, b: int) -> int:
     """Subtract two numbers"""
     logging.debug(f"Subtracting {a} - {b}")
     return a - b
 
 @mcp.tool()
-def multiply(a, b):
+def multiply(a: int, b: int) -> int:
     """Multiply two numbers"""
     logging.debug(f"Multiplying {a} * {b}")
     return a * b
 
 @mcp.tool()
-def divide(a, b):
+def divide(a: int, b: int) -> float:
     """Divide two numbers"""
     logging.debug(f"Dividing {a} / {b}")
     return a / b
 
 @mcp.tool()
-def power(a, b):
+def power(a: int, b: int) -> int:
     """Raise a to the power of b"""
     logging.debug(f"Calculating {a} ** {b}")
     return a ** b

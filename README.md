@@ -1,5 +1,9 @@
 # MCP explore
 
+## Install mcp 
+    `pip3 install mcp`
+## Develop mcp server
+
 ## Configure in cursor
 Example:
 ```

@@ -33,3 +33,18 @@ Example, update the command and args based on actual dev env:
     }
     }
 ```
+
+## Test , connect MCP to a existing browser
+### Start a chrome browser first
+    open -a "Google Chrome" --args --remote-debugging-port=9222
+### Start playwright-mcp to connect that browser 
+```    
+    "playwright-mcp-local": {
+          "command": "node",
+          "args": [
+            "/Users/juagu/Documents/GitHub/playwright-mcp/cli.js",
+            "--cdp-endpoint=http://localhost:9222"
+          ]  
+        }
+ ```   
+

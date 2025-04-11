@@ -1,0 +1,173 @@
+---
+description: 
+globs: *.py
+alwaysApply: false
+---
+You are an AI assistant specialized in PlayWright and pytest development, your approach emphasizes:
+
+# Clear project structure with separate directories for config, data, pages, testcases, utils, conftest.py, and how each test under testcases use other parts to complete a test case. Understand the page object, and the each test's objective. 
+
+# Clear undertanding the Cloudia package capability, code is in `/Users/juagu/Library/Caches/pypoetry/virtualenvs/ngc-ui-test-LAXCvaQS-py3.11/lib/python3.11/site-packages/cloudia/`
+
+# Before test case code generation.
+  - Understand the case by checking user recorded scripts,snapshots, testplan. 
+    - The recorded scripts under `input/records/{CaseNumber}_with_snapshots.py` are from the the test steps for `CaseNumber` in the testplan file `input/testplans/testplan_{CaseNumber}.md`, could be slight different since UI might change.
+    - When record the scripts `input/records/{CaseNumber}.py` each click or navigate will take a series of snapshots, read the aria snapshots under `input/snapshot/{CaseNumber}/session-{folder}` to understand operation flow and verification points.
+   
+# Generate code for a new test case by follow below actions.
+  - All test files must follow the naming pattern `test_*.py`
+  - Test files should be organized in subdirectories under `testcases/` based on feature area (e.g., `testcases/Catalog/`, `testcases/CoreService/`)  
+  - Each test class should follow the naming pattern `Test{FeatureName}` (e.g., `TestContainers`, `TestCoreService`)
+  - Test methods should start with `test_` and have descriptive names
+  - Must apply user authetication.
+    - `get_user_page` for single user
+    - `get_multiple_user_pages` for multiple users, users list should different.
+    - `guest_page` for guest user
+    - Important: Do not add logic inside the test case, this should be handled in fixtures like `get_user_page`,`get_multiple_user_pages`
+  - Use the the right user, follow `Find the role` to set the role.
+  - Put the code in suitable place
+    - If under the test feature area, already have the python test file `test_feature.py`, then append to it.If there is no existing python test file under the test feature area, create one, follow the naming pattern  `test_feature.py` feature is lowercase of the feature, and inside it, the Class name pattern is `TestFeature`.Do not modify other existing test case code logic.
+  - Test method can keep more than one fixtures.
+  - Only add `test_data` parameter in test method when we are using test data from test_data.
+  - IMPORTANT: When the case need goto certain url directly, for example, use function like `goto(someurl)`, follow `Common Rule` for url generation.
+  - Utilize built-in BasePage navigation methods whenever possible instead of direct page interactions
+    - Important navigation methods in BasePage include:
+      - navigation_to_account_settings(): Navigates to Account Settings page 
+      - navigation_to_organization(): Navigates to Organization page
+      - navigation_to_setup(): Navigates to Setup page
+      - navigate_to_page(feature_name, entry_name): General navigation method for sidebar menu items
+      
+    - Example usage for Account Settings navigation:
+      ```python
+      # Don't do this:
+      page.get_by_test_id("kui-app-bar").get_by_role("img").nth(4).click()
+      page.get_by_role("menuitem", name="Account Settings").click()
+      
+      # Instead, do this:
+      base_page = BasePage(page)
+      base_page.navigation_to_account_settings()
+      ```
+  - Double check whether it placed in right place.
+  - Double check whether there are common function can be used from codebase and cloudia.
+  - Double check the the parameters are right for the common function.
+  - Double check all necessary imports are included in any generated test code and remove those imports that are not in use.
+  - IMPORTANT: Manage the test data well.
+    - DO NOT hardcode the test data in the code.
+    - If the test data exists in related toml file, use the existing test data, otherwise, add it in related test data file under data folder, and use it like other tests. 
+  - Make sure the test data used in case exists.
+  - Double check common Utilities and use them.
+    - URL generation applies to the scenario when needs to navigate/go to certain url directly, refer to below sample:
+      ```python
+      from utils.common.tools import get_url_with_service_type
+      
+
+      test_container = test_data["SomeComponent"]["KeyWord"]
+      env = get_current_env()
+      url = get_url_with_service_type("Feature", test_container, env)
+      logging.info(f"Opening container details page: {url}")
+      page.goto(url)
+
+      ```
+    - File handling, when reading test data files, refer to below sample:
+      ```python
+      from cloudia.utils.file_handler import file_handler
+      
+      test_data = file_handler(TEST_DATA_PATH).read()
+      ```
+    - Environment utilities, when need get whether it's stagging or canary or product, use below method:
+      ```python
+      from cloudia.utils.env_service import get_current_env
+      ```
+
+# Apply markers, add priority, feature,template ID, test type markers
+  Avaliable marker list:
+    - Priority markers: `@pytest.mark.P0`, `@pytest.mark.P1`, `@pytest.mark.P2`
+    - Feature area markers:Environment
+      - `@pytest.mark.Catalog` - For Catalog Registry test cases
+      - `@pytest.mark.CoreService` - For CoreService test cases
+      - `@pytest.mark.BCP` - For BCP test cases
+      - `@pytest.mark.FC` - For Fleet Command test cases
+      - `@pytest.mark.CloudFunctions` - For Cloud Functions test cases
+      - `@pytest.mark.Console` - For Console test cases
+      - `@pytest.mark.Registry` - For Private Registry test cases
+      - `@pytest.mark.General` - For NGC General test cases
+      - `@pytest.mark.QuickStart` - For QuickStart PYM test cases
+      - `@pytest.mark.VMI` - For VMI test cases
+      - `@pytest.mark.GCP` - For GCP test cases
+      - `@pytest.mark.PersonalKey` - For personal key test cases
+      - `@pytest.mark.ServiceKey` - For service key test cases
+      - `@pytest.mark.UnifiedCatalog` - For Unified Catalog test cases
+    - Environment markers: `@pytest.mark.prod`, `@pytest.mark.prod_sanity`
+    - Template ID markers: `@pytest.mark.T1234567` (Template ID)
+    - Test type markers: `@pytest.mark.Sanity`, `@pytest.mark.Smoke`
+
+# Assertions
+  - Use Playwright's `expect` for assertions:
+    ```python
+    expect(get_user_page).to_have_title(expected_title)
+    expect(get_user_page).to_have_url(expected_url)
+    ```
+  - Use standard assertions for non-UI checks:
+    ```python
+    assert page_element.is_visible()
+    ```
+
+# Custom fixtures should be defined with appropriate scope and docstrings
+
+# Test Case Template
+```python
+
+some_user_role = ["org_admin"]
+@pytest.mark.Sanity
+@pytest.mark.T1234567  # Template ID marker
+@pytest.mark.Catalog
+@pytest.mark.parametrize("get_user_page", some_user_role , indirect=True)
+def test_some_functionality(self, get_user_page, test_data):
+    # get_user_page will open default base page.
+    
+    # Add test data only when it's being used in the case or need create one for the case
+    test_value = test_data["key1"]["key2"]
+
+    # Initialize some page
+    page = SomePage(get_user_page)
+    
+    # Actions
+    page.navigate_to_page() 
+    # Or page.navigate_to_***_***() defined in Cloudia base page
+    page.perform_some_action()
+    
+    # Assertions
+    logging.info("Expected: check Title")
+    expect(get_user_page).to_have_title(expected_title)
+    logging.info("Expected: check URL")
+    expect(get_user_page).to_have_url(expected_url)
+```
+
+# Run the test case
+  - IMPORTANT: All test execution MUST be done through Poetry
+  - ALWAYS use 'poetry run pytest' command
+  - NEVER use pytest directly
+  - Example: `poetry run pytest path/to/test_file.py::TestClass::test_method`.
+
+# Debug the test case
+  - Try re-run if the case is failing outside the test.
+  - First, looking for the aria and html file and read the content, then try fix the case
+  - For example, when run a case using `poetry run pytest testcases/General/test_shared_credentials.py::TestSharedCredentials::test_check_the_shared_credential_url_with_same_org -v`, when it failed, framework will generate `T3673961_********_aria.txt` and `T3673961_********page_dump.html`, `T3673961` is the template ID marker for this case. You can taka a look at those files and then try to fix the case
+
+
+# Handle Cookie Consent Dialogs
+  - IMPORTANT: Always handle cookie consent dialogs that may interfere with test execution
+  - Use the built-in `_close_cookies_policy_dialog()` method from BasePage after navigation and before interacting with page elements:
+    ```python
+    # After navigating to a page
+    base_page.navigation_to_some_page()
+    # Close cookie dialogs before interacting with elements
+    base_page._close_cookies_policy_dialog()
+    
+    # Now it's safe to interact with elements
+    element = page.get_by_test_id("some-element")
+    element.click()
+    ```
+  
+# Always remember which case we are working on, and focus on that one, do not modify code for other test cases, unless I specifically ask you to do so.
+ 

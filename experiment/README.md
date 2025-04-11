@@ -61,3 +61,11 @@ Example, {casenumber}_with_snapshots.py:
         expect(page.get_by_test_id("kui-status-message-header")).to_be_visible()
 
 ```
+
+## Cursor rule sample
+```
+# Before test case code generation.
+  - Understand the case by checking user recorded scripts,snapshots, testplan. 
+    - The recorded scripts under `input/records/{CaseNumber}_with_snapshots.py` are from the the test steps for `CaseNumber` in the testplan file `input/testplans/testplan_{CaseNumber}.md`, could be slight different since UI might change.
+    - When record the scripts `input/records/{CaseNumber}.py` each click or navigate will take a series of snapshots, read the aria snapshots under `input/snapshot/{CaseNumber}/session-{folder}` to understand operation flow and verification points.
+```

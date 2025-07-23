@@ -72,13 +72,59 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                             xpath_data = msg.text.split('XPath captured: ')[1]
                             element_data = json.loads(xpath_data)
                             captured_elements.append(element_data)
-                            print("\n🎯 Captured element:")
+                            print(f"\n🎯 Captured element:")
                             print(f"  Tag: {element_data['tagName']}")
-                            print(f"  XPath: {element_data['xpath']}")
+                            print(f"  Absolute XPath: {element_data['xpath']}")
+                            
+                            own_unique_xpath = element_data.get('ownUniqueXPath', 'N/A')
+                            if own_unique_xpath == "no unique attribute":
+                                print(f"  Own Unique XPath: ❌ {own_unique_xpath}")
+                            elif isinstance(own_unique_xpath, list):
+                                print(f"  Own Unique XPaths: ✅ Found {len(own_unique_xpath)} options:")
+                                for i, xpath_info in enumerate(own_unique_xpath, 1):
+                                    print(f"    {i}. {xpath_info['type']}: {xpath_info['xpath']}")
+                            else:
+                                print(f"  Own Unique XPath: ✅ {own_unique_xpath}")
+                                
                             if element_data.get('textContent'):
                                 print(f"  Text: {element_data['textContent'][:50]}...")
+                            
+                            # Display HTML (truncated if too long)
+                            html = element_data.get('html', '')
+                            if html:
+                                if len(html) > 200:
+                                    print(f"  HTML: {html[:200]}...")
+                                else:
+                                    print(f"  HTML: {html}")
                         except Exception as e:
                             print(f"Error parsing XPath data: {e}")
+                    elif msg.type == 'log' and 'Trying XPath:' in msg.text:
+                        # Display XPath trying logs in terminal
+                        print(f"  🔍 {msg.text}")
+                    elif msg.type == 'log' and 'getOwnUniqueXPath called for:' in msg.text:
+                        # Display when XPath generation starts
+                        print(f"\n🔍 {msg.text}")
+                    elif msg.type == 'log' and 'Element HTML:' in msg.text:
+                        # Display element HTML in terminal
+                        html = msg.text.split('Element HTML: ')[1]
+                        if len(html) > 200:
+                            print(f"  📄 HTML: {html[:200]}...")
+                        else:
+                            print(f"  📄 HTML: {html}")
+                    elif msg.type == 'log' and 'Using ' in msg.text and ':' in msg.text:
+                        # Display which attribute was used
+                        print(f"  ✅ {msg.text}")
+                    elif msg.type == 'log' and 'Found unique XPaths:' in msg.text:
+                        # Display how many unique XPaths were found
+                        count = msg.text.split('Found unique XPaths: ')[1]
+                        print(f"  🎯 {msg.text}")
+                    elif msg.type == 'log' and 'Own Unique XPath generated:' in msg.text:
+                        # Display the final generated XPath(s)
+                        xpath_data = msg.text.split('Own Unique XPath generated: ')[1]
+                        print(f"  🎯 Generated: {xpath_data}")
+                    elif msg.type == 'log' and 'No unique attributes found' in msg.text:
+                        # Display when no unique attributes are found
+                        print(f"  ❌ {msg.text}")
                 
                 # Listen for console messages
                 target_page.on('console', handle_console)
@@ -331,6 +377,19 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                         const xpath = getAbsoluteXPath(element);
                         console.log('XPath generated:', xpath);
                         
+                        // Get readable XPath
+                        const ownUniqueXPath = getOwnUniqueXPath(element);
+                        console.log('Own Unique XPath generated:', ownUniqueXPath);
+                        
+                        // Log element details for debugging
+                        console.log('Element details:', {
+                            tagName: element.tagName,
+                            id: element.id,
+                            className: element.className,
+                            textContent: element.textContent ? element.textContent.trim() : '',
+                            html: element.outerHTML
+                        });
+                        
                         // Store clicked element data
                         const elementData = {
                             tagName: element.tagName.toLowerCase(),
@@ -338,6 +397,8 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                             className: element.className,
                             textContent: element.textContent ? element.textContent.trim() : '',
                             xpath: xpath,
+                            ownUniqueXPath: ownUniqueXPath,
+                            html: element.outerHTML,
                             timestamp: Date.now()
                         };
                         
@@ -376,11 +437,17 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                     
                     function getAbsoluteXPath(element) {
                         if (element.id) {
-                            return `//*[@id="${element.id}"]`;
+                            const xpath = `//*[@id="${element.id}"]`;
+                            if (isXPathUnique(xpath)) {
+                                return xpath;
+                            }
                         }
                         
                         if (element === document.body) {
-                            return '/html/body';
+                            const xpath = '/html/body';
+                            if (isXPathUnique(xpath)) {
+                                return xpath;
+                            }
                         }
                         
                         let path = '';
@@ -402,7 +469,252 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                             element = element.parentNode;
                         }
                         
-                        return path;
+                        // Verify the generated absolute XPath is unique
+                        if (isXPathUnique(path)) {
+                            return path;
+                        } else {
+                            console.log('Generated absolute XPath is not unique, this should not happen:', path);
+                            // Fallback: add position() to make it unique
+                            return path + '[1]';
+                        }
+                    }
+                    
+                    function isXPathUnique(xpath) {
+                        try {
+                            const xpathElements = document.evaluate(xpath, document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+                            const count = xpathElements.snapshotLength;
+                            console.log(`Trying XPath: "${xpath}", count: ${count}`);
+                            return count === 1;
+                        } catch (error) {
+                            console.log(`Error evaluating XPath "${xpath}":`, error);
+                            return false;
+                        }
+                    }
+                    
+                    function getOwnUniqueXPath(element) {
+                        console.log('getOwnUniqueXPath called for:', element.tagName, element.id, element.className);
+                        console.log('Element HTML:', element.outerHTML);
+                        
+                        const uniqueXPaths = [];
+                        
+                        // 1. If element has an ID, use it (shortest and most reliable)
+                        if (element.id) {
+                            const xpath = `//*[@id="${element.id}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using ID:', element.id);
+                                uniqueXPaths.push({ type: 'ID', xpath: xpath, value: element.id });
+                            }
+                        }
+                        
+                        // 2. If element has unique exact text content, use it (very reliable)
+                        if (element.textContent && element.textContent.trim()) {
+                            const text = element.textContent.trim();
+                            console.log('Checking textContent:', text);
+                            console.log('Text length:', text.length);
+                            console.log('Text character codes:', Array.from(text).map(c => c.charCodeAt(0)));
+                            console.log('Has quotes:', text.includes('"') || text.includes("'"));
+                            
+                            if (text.length > 2 && text.length < 100) { // Reasonable text length
+                                // Escape quotes for XPath
+                                const escapedText = text.replace(/"/g, '\\"').replace(/'/g, "\\'");
+                                
+                                // First try exact text match
+                                const exactXpath = `//${element.tagName.toLowerCase()}[text()="${escapedText}"]`;
+                                console.log('Trying textContent exact XPath:', exactXpath);
+                                if (isXPathUnique(exactXpath)) {
+                                    console.log('Using exact textContent match:', text);
+                                    uniqueXPaths.push({ type: 'Exact TextContent', xpath: exactXpath, value: text });
+                                } else {
+                                    // If exact match fails, try contains
+                                    const containsXpath = `//${element.tagName.toLowerCase()}[contains(text(),"${escapedText}")]`;
+                                    console.log('Trying textContent contains XPath:', containsXpath);
+                                    if (isXPathUnique(containsXpath)) {
+                                        console.log('Using contains textContent match:', text);
+                                        uniqueXPaths.push({ type: 'Contains TextContent', xpath: containsXpath, value: text });
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 3. If element has unique innerText content, use it (more normalized)
+                        if (element.innerText && element.innerText.trim()) {
+                            const innerText = element.innerText.trim();
+                            console.log('Checking innerText:', innerText);
+                            console.log('InnerText length:', innerText.length);
+                            console.log('InnerText character codes:', Array.from(innerText).map(c => c.charCodeAt(0)));
+                            console.log('InnerText has quotes:', innerText.includes('"') || innerText.includes("'"));
+                            
+                            // Check if innerText is different from textContent
+                            const textContent = element.textContent ? element.textContent.trim() : '';
+                            if (innerText === textContent) {
+                                console.log('innerText is same as textContent, skipping to avoid duplicate');
+                            } else {
+                                if (innerText.length > 2 && innerText.length < 100) { // Reasonable text length
+                                    // Escape quotes for XPath
+                                    const escapedInnerText = innerText.replace(/"/g, '\\"').replace(/'/g, "\\'");
+                                    
+                                    // First try exact text match
+                                    const exactXpath = `//${element.tagName.toLowerCase()}[text()="${escapedInnerText}"]`;
+                                    console.log('Trying innerText exact XPath:', exactXpath);
+                                    if (isXPathUnique(exactXpath)) {
+                                        console.log('Using exact innerText match:', innerText);
+                                        uniqueXPaths.push({ type: 'Exact InnerText', xpath: exactXpath, value: innerText });
+                                    } else {
+                                        // If exact match fails, try contains
+                                        const containsXpath = `//${element.tagName.toLowerCase()}[contains(text(),"${escapedInnerText}")]`;
+                                        console.log('Trying innerText contains XPath:', containsXpath);
+                                        if (isXPathUnique(containsXpath)) {
+                                            console.log('Using contains innerText match:', innerText);
+                                            uniqueXPaths.push({ type: 'Contains InnerText', xpath: containsXpath, value: innerText });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 4. If element has data-icon-name, use it (great for icons)
+                        if (element.hasAttribute('data-icon-name')) {
+                            const iconName = element.getAttribute('data-icon-name');
+                            const xpath = `//${element.tagName.toLowerCase()}[@data-icon-name="${iconName}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using data-icon-name:', iconName);
+                                uniqueXPaths.push({ type: 'data-icon-name', xpath: xpath, value: iconName });
+                            }
+                        }
+                        
+                        // 5. If element has data-testid, use it (specifically designed for testing)
+                        if (element.hasAttribute('data-testid')) {
+                            const testId = element.getAttribute('data-testid');
+                            const xpath = `//${element.tagName.toLowerCase()}[@data-testid="${testId}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using data-testid:', testId);
+                                uniqueXPaths.push({ type: 'data-testid', xpath: xpath, value: testId });
+                            }
+                        }
+                        
+                        // 6. Check for other unique data attributes
+                        const dataAttrs = ['data-id', 'data-name', 'data-value', 'data-label', 'data-cy', 'data-qa'];
+                        for (let attr of dataAttrs) {
+                            if (element.hasAttribute(attr)) {
+                                const value = element.getAttribute(attr);
+                                const xpath = `//${element.tagName.toLowerCase()}[@${attr}="${value}"]`;
+                                if (isXPathUnique(xpath)) {
+                                    console.log('Using data attribute:', attr, value);
+                                    uniqueXPaths.push({ type: attr, xpath: xpath, value: value });
+                                }
+                            }
+                        }
+                        
+                        // 7. If element has a unique aria-label, use it
+                        if (element.hasAttribute('aria-label')) {
+                            const ariaLabel = element.getAttribute('aria-label');
+                            const xpath = `//${element.tagName.toLowerCase()}[@aria-label="${ariaLabel}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using aria-label:', ariaLabel);
+                                uniqueXPaths.push({ type: 'aria-label', xpath: xpath, value: ariaLabel });
+                            }
+                        }
+                        
+                        // 8. If element has a unique title, use it
+                        if (element.hasAttribute('title')) {
+                            const title = element.getAttribute('title');
+                            const xpath = `//${element.tagName.toLowerCase()}[@title="${title}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using title:', title);
+                                uniqueXPaths.push({ type: 'title', xpath: xpath, value: title });
+                            }
+                        }
+                        
+                        // 9. If element has a unique name attribute, use it
+                        if (element.hasAttribute('name')) {
+                            const name = element.getAttribute('name');
+                            const xpath = `//${element.tagName.toLowerCase()}[@name="${name}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using name:', name);
+                                uniqueXPaths.push({ type: 'name', xpath: xpath, value: name });
+                            }
+                        }
+                        
+                        // 10. If element has a unique placeholder, use it
+                        if (element.hasAttribute('placeholder')) {
+                            const placeholder = element.getAttribute('placeholder');
+                            const xpath = `//${element.tagName.toLowerCase()}[@placeholder="${placeholder}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using placeholder:', placeholder);
+                                uniqueXPaths.push({ type: 'placeholder', xpath: xpath, value: placeholder });
+                            }
+                        }
+                        
+                        // 11. If element has a unique value attribute, use it
+                        if (element.hasAttribute('value')) {
+                            const value = element.getAttribute('value');
+                            // Skip empty values as they're not meaningful
+                            if (value && value.trim() !== '') {
+                                const xpath = `//${element.tagName.toLowerCase()}[@value="${value}"]`;
+                                if (isXPathUnique(xpath)) {
+                                    console.log('Using value:', value);
+                                    uniqueXPaths.push({ type: 'value', xpath: xpath, value: value });
+                                }
+                            }
+                        }
+                        
+                        // 12. If element has a unique type attribute, use it
+                        if (element.hasAttribute('type')) {
+                            const type = element.getAttribute('type');
+                            const xpath = `//${element.tagName.toLowerCase()}[@type="${type}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using type:', type);
+                                uniqueXPaths.push({ type: 'type', xpath: xpath, value: type });
+                            }
+                        }
+                        
+                        // 13. If element has a unique href attribute, use it
+                        if (element.hasAttribute('href')) {
+                            const href = element.getAttribute('href');
+                            const xpath = `//${element.tagName.toLowerCase()}[@href="${href}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using href:', href);
+                                uniqueXPaths.push({ type: 'href', xpath: xpath, value: href });
+                            }
+                        }
+                        
+                        // 14. If element has a unique src attribute, use it
+                        if (element.hasAttribute('src')) {
+                            const src = element.getAttribute('src');
+                            const xpath = `//${element.tagName.toLowerCase()}[@src="${src}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using src:', src);
+                                uniqueXPaths.push({ type: 'src', xpath: xpath, value: src });
+                            }
+                        }
+                        
+                        // 15. If element has a unique alt attribute, use it
+                        if (element.hasAttribute('alt')) {
+                            const alt = element.getAttribute('alt');
+                            const xpath = `//${element.tagName.toLowerCase()}[@alt="${alt}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using alt:', alt);
+                                uniqueXPaths.push({ type: 'alt', xpath: xpath, value: alt });
+                            }
+                        }
+                        
+                        // 16. If element has a unique role attribute, use it
+                        if (element.hasAttribute('role')) {
+                            const role = element.getAttribute('role');
+                            const xpath = `//${element.tagName.toLowerCase()}[@role="${role}"]`;
+                            if (isXPathUnique(xpath)) {
+                                console.log('Using role:', role);
+                                uniqueXPaths.push({ type: 'role', xpath: xpath, value: role });
+                            }
+                        }
+                        
+                        if (uniqueXPaths.length > 0) {
+                            console.log('Found unique XPaths:', uniqueXPaths.length);
+                            return uniqueXPaths;
+                        } else {
+                            console.log('No unique attributes found');
+                            return "no unique attribute";
+                        }
                     }
                     
                     // Add keyboard shortcuts
@@ -446,10 +758,23 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                         print(f"\n📊 Total captured elements: {len(captured_elements)}")
                         print("\n📋 Element summary:")
                         for i, element in enumerate(captured_elements, 1):
-                            print(f"{i:2d}. {element['tagName']:8s} - {element['xpath']}")
+                            print(f"{i:2d}. {element['tagName']:8s}")
+                            print(f"     Absolute: {element['xpath']}")
+                            
+                            own_unique_xpath = element.get('ownUniqueXPath', 'N/A')
+                            if own_unique_xpath == "no unique attribute":
+                                print(f"     Own Unique: ❌ {own_unique_xpath}")
+                            elif isinstance(own_unique_xpath, list):
+                                print(f"     Own Unique XPaths: ✅ Found {len(own_unique_xpath)} options:")
+                                for j, xpath_info in enumerate(own_unique_xpath, 1):
+                                    print(f"        {j}. {xpath_info['type']}: {xpath_info['xpath']}")
+                            else:
+                                print(f"     Own Unique XPath: ✅ {own_unique_xpath}")
+                                
                             if element.get('textContent'):
                                 text = element['textContent'][:30]
                                 print(f"     Text: {text}")
+                            print()
                     else:
                         print("❌ No elements were captured.")
                         print("💡 Make sure you're clicking on elements in the browser!")

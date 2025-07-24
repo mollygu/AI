@@ -110,17 +110,10 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                     elif msg.type == 'log' and 'Element:' in msg.text:
                         # Display element info
                         print(f"  📄 {msg.text}")
-                    elif msg.type == 'log' and 'Using ' in msg.text and ':' in msg.text:
-                        # Display which attribute was used
-                        print(f"  ✅ {msg.text}")
                     elif msg.type == 'log' and 'Found unique XPaths:' in msg.text:
                         # Display how many unique XPaths were found
                         count = msg.text.split('Found unique XPaths: ')[1]
                         print(f"  🎯 {msg.text}")
-                    elif msg.type == 'log' and 'Own Unique XPath generated:' in msg.text:
-                        # Display the final generated XPath(s)
-                        xpath_data = msg.text.split('Own Unique XPath generated: ')[1]
-                        print(f"  🎯 Generated: {xpath_data}")
                     elif msg.type == 'log' and 'No unique attributes found' in msg.text:
                         # Display when no unique attributes are found
                         print(f"  ❌ {msg.text}")
@@ -621,7 +614,6 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                             if (element.id) {
                                 const xpath = `//*[@id="${element.id}"]`;
                                 if (isXPathUnique(xpath)) {
-                                    console.log('Using ID:', element.id);
                                     uniqueXPaths.push({ type: 'ID', xpath: xpath, value: element.id });
                                 }
                             }

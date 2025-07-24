@@ -672,17 +672,7 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                                 }
                             }
                             
-                            // 4. If element has data-icon-name, use it (great for icons)
-                            if (element.hasAttribute('data-icon-name')) {
-                                const iconName = element.getAttribute('data-icon-name');
-                                const xpath = `//${element.tagName.toLowerCase()}[@data-icon-name="${iconName}"]`;
-                                if (isXPathUnique(xpath)) {
-                                    console.log('Using data-icon-name:', iconName);
-                                    uniqueXPaths.push({ type: 'data-icon-name', xpath: xpath, value: iconName });
-                                }
-                            }
-                            
-                            // 5. If element has data-testid, use it (specifically designed for testing)
+                            // 4. If element has data-testid, use it (specifically designed for testing)
                             if (element.hasAttribute('data-testid')) {
                                 const testId = element.getAttribute('data-testid');
                                 const xpath = `//${element.tagName.toLowerCase()}[@data-testid="${testId}"]`;
@@ -692,20 +682,29 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                                 }
                             }
                             
-                            // 6. Check for other unique data attributes
-                            const dataAttrs = ['data-id', 'data-name', 'data-value', 'data-label', 'data-cy', 'data-qa'];
+                            // 5. Check for other unique data attributes
+                            const dataAttrs = ['data-icon-name', 'data-id', 'data-name', 'data-value', 'data-label', 'data-cy', 'data-qa'];
                             for (let attr of dataAttrs) {
                                 if (element.hasAttribute(attr)) {
                                     const value = element.getAttribute(attr);
-                                    const xpath = `//${element.tagName.toLowerCase()}[@${attr}="${value}"]`;
+                                    
+                                    // Try standard XPath first
+                                    let xpath = `//${element.tagName.toLowerCase()}[@${attr}="${value}"]`;
                                     if (isXPathUnique(xpath)) {
                                         console.log('Using data attribute:', attr, value);
                                         uniqueXPaths.push({ type: attr, xpath: xpath, value: value });
+                                    } else {
+                                        // If standard XPath fails, try with name() function
+                                        xpath = `//*[name()='${element.tagName.toLowerCase()}' and @${attr}="${value}"]`;
+                                        if (isXPathUnique(xpath)) {
+                                            console.log('Using data attribute (with name()):', attr, value);
+                                            uniqueXPaths.push({ type: attr, xpath: xpath, value: value });
+                                        }
                                     }
                                 }
                             }
                             
-                            // 7. If element has a unique aria-label, use it
+                            // 6. If element has a unique aria-label, use it
                             if (element.hasAttribute('aria-label')) {
                                 const ariaLabel = element.getAttribute('aria-label');
                                 const xpath = `//${element.tagName.toLowerCase()}[@aria-label="${ariaLabel}"]`;
@@ -715,7 +714,7 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                                 }
                             }
                             
-                            // 8. If element has a unique title, use it
+                            // 7. If element has a unique title, use it
                             if (element.hasAttribute('title')) {
                                 const title = element.getAttribute('title');
                                 const xpath = `//${element.tagName.toLowerCase()}[@title="${title}"]`;
@@ -725,7 +724,7 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                                 }
                             }
                             
-                            // 9. If element has a unique name attribute, use it
+                            // 8. If element has a unique name attribute, use it
                             if (element.hasAttribute('name')) {
                                 const name = element.getAttribute('name');
                                 const xpath = `//${element.tagName.toLowerCase()}[@name="${name}"]`;
@@ -735,7 +734,7 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                                 }
                             }
                             
-                            // 10. If element has a unique placeholder, use it
+                            // 9. If element has a unique placeholder, use it
                             if (element.hasAttribute('placeholder')) {
                                 const placeholder = element.getAttribute('placeholder');
                                 const xpath = `//${element.tagName.toLowerCase()}[@placeholder="${placeholder}"]`;
@@ -745,7 +744,7 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                                 }
                             }
                             
-                            // 11. If element has a unique value attribute, use it
+                            // 10. If element has a unique value attribute, use it
                             if (element.hasAttribute('value')) {
                                 const value = element.getAttribute('value');
                                 // Skip empty values as they're not meaningful
@@ -758,7 +757,7 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                                 }
                             }
                             
-                            // 12. If element has a unique type attribute, use it
+                            // 11. If element has a unique type attribute, use it
                             if (element.hasAttribute('type')) {
                                 const type = element.getAttribute('type');
                                 const xpath = `//${element.tagName.toLowerCase()}[@type="${type}"]`;
@@ -768,7 +767,7 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                                 }
                             }
                             
-                            // 13. If element has a unique href attribute, use it
+                            // 12. If element has a unique href attribute, use it
                             if (element.hasAttribute('href')) {
                                 const href = element.getAttribute('href');
                                 const xpath = `//${element.tagName.toLowerCase()}[@href="${href}"]`;
@@ -778,7 +777,7 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                                 }
                             }
                             
-                            // 14. If element has a unique src attribute, use it
+                            // 13. If element has a unique src attribute, use it
                             if (element.hasAttribute('src')) {
                                 const src = element.getAttribute('src');
                                 const xpath = `//${element.tagName.toLowerCase()}[@src="${src}"]`;
@@ -788,7 +787,7 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                                 }
                             }
                             
-                            // 15. If element has a unique alt attribute, use it
+                            // 14. If element has a unique alt attribute, use it
                             if (element.hasAttribute('alt')) {
                                 const alt = element.getAttribute('alt');
                                 const xpath = `//${element.tagName.toLowerCase()}[@alt="${alt}"]`;
@@ -798,7 +797,7 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                                 }
                             }
                             
-                            // 16. If element has a unique role attribute, use it
+                            // 15. If element has a unique role attribute, use it
                             if (element.hasAttribute('role')) {
                                 const role = element.getAttribute('role');
                                 const xpath = `//${element.tagName.toLowerCase()}[@role="${role}"]`;

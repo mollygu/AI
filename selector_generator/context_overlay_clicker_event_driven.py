@@ -187,6 +187,34 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
 
                 # Set up overlay functionality with event-driven approach
                 await target_page.evaluate("""
+                    // Clean up any existing overlay state first
+                    if (window.overlayActive) {
+                        console.log('Cleaning up existing overlay state...');
+                        const existingOverlay = document.getElementById('element-overlay');
+                        if (existingOverlay) {
+                            existingOverlay.remove();
+                        }
+                        const existingControls = document.querySelector('.overlay-controls');
+                        if (existingControls) {
+                            existingControls.remove();
+                        }
+                        const existingHighlights = document.querySelectorAll('.element-highlight');
+                        existingHighlights.forEach(h => h.remove());
+                        const existingInfo = document.querySelectorAll('.element-info');
+                        existingInfo.forEach(i => i.remove());
+                        const existingStyles = document.querySelector('style');
+                        if (existingStyles && existingStyles.textContent.includes('.element-overlay')) {
+                            existingStyles.remove();
+                        }
+                        window.overlayActive = false;
+                    }
+                    
+                    // Remove any existing keyboard event listeners
+                    if (window.overlayKeyHandler) {
+                        document.removeEventListener('keydown', window.overlayKeyHandler);
+                        console.log('Removed existing keyboard event listener');
+                    }
+                    
                     window.overlayActive = false;
                     
                     function createOverlay() {
@@ -220,6 +248,7 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                         controls.innerHTML = `
                             <div><strong>XPath Capture Mode</strong></div>
                             <div>Press <kbd>ESC</kbd> to toggle overlay</div>
+                            <div>Press <kbd>R</kbd> to reset completely</div>
                         `;
                         document.body.appendChild(controls);
                         
@@ -293,6 +322,43 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                         
                         window.overlayActive = false;
                         console.log('Overlay deactivated');
+                    }
+                    
+                    function resetOverlay() {
+                        console.log('Resetting overlay completely...');
+                        
+                        // Remove overlay
+                        removeOverlay();
+                        
+                        // Remove all highlights and info tooltips
+                        const highlights = document.querySelectorAll('.element-highlight');
+                        highlights.forEach(h => h.remove());
+                        console.log('Removed highlights');
+                        
+                        const infoTooltips = document.querySelectorAll('.element-info');
+                        infoTooltips.forEach(i => i.remove());
+                        console.log('Removed info tooltips');
+                        
+                        // Remove any click highlights (green borders)
+                        const clickHighlights = document.querySelectorAll('[style*="border: 3px solid #00ff00"]');
+                        clickHighlights.forEach(h => h.remove());
+                        console.log('Removed click highlights');
+                        
+                        // Remove the overlay styles
+                        const overlayStyles = document.querySelector('style');
+                        if (overlayStyles && overlayStyles.textContent.includes('.element-overlay')) {
+                            overlayStyles.remove();
+                            console.log('Removed overlay styles');
+                        }
+                        
+                        // Reset global state
+                        window.overlayActive = false;
+                        window.createOverlay = null;
+                        window.removeOverlay = null;
+                        window.toggleOverlay = null;
+                        window.resetOverlay = null;
+                        
+                        console.log('Overlay completely reset - all event listeners and DOM elements removed');
                     }
                     
                     function toggleOverlay() {
@@ -717,26 +783,51 @@ async def add_overlay_to_existing_pages_event_driven(cdp_endpoint: str, page_ind
                         }
                     }
                     
-                    // Add keyboard shortcuts
-                    document.addEventListener('keydown', function(event) {
-                        if (event.key === 'Escape') {
-                            console.log('ESC pressed - toggling overlay');
-                            toggleOverlay();
-                        }
-                    });
-                    
                     // Expose functions globally
                     window.createOverlay = createOverlay;
                     window.removeOverlay = removeOverlay;
                     window.toggleOverlay = toggleOverlay;
+                    window.resetOverlay = resetOverlay;
+                    
+                    console.log('All overlay functions defined and exposed to window object');
+                    
+                    // Add keyboard shortcuts AFTER functions are defined
+                    window.overlayKeyHandler = function(event) {
+                        if (event.key === 'Escape') {
+                            console.log('ESC pressed - toggling overlay');
+                            toggleOverlay();
+                        } else if (event.key === 'r' || event.key === 'R') {
+                            console.log('R pressed - resetting overlay completely');
+                            resetOverlay();
+                        }
+                    };
+                    
+                    document.addEventListener('keydown', window.overlayKeyHandler);
+                    console.log('Keyboard event listener added');
                 """)
 
                 # Activate the overlay
-                await target_page.evaluate("window.createOverlay()")
-                print("✅ Overlay activated on existing page!")
+                try:
+                    # Add a small delay to ensure functions are properly defined
+                    await asyncio.sleep(0.1)
+                    
+                    # Check if function exists before calling
+                    function_exists = await target_page.evaluate("typeof window.createOverlay === 'function'")
+                    if function_exists:
+                        await target_page.evaluate("window.createOverlay()")
+                        print("✅ Overlay activated on existing page!")
+                    else:
+                        print("❌ Error: createOverlay function not found")
+                        return
+                        
+                except Exception as e:
+                    print(f"❌ Error activating overlay: {e}")
+                    return
+                    
                 print("\n🎮 Controls:")
                 print("  • Click elements to capture XPaths")
                 print("  • Press ESC to toggle overlay on/off")
+                print("  • Press R to reset completely (remove all)")
                 print("  • Press Ctrl+C to stop and get results")
                 
                 # Wait for user to stop
